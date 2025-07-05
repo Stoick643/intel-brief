@@ -292,7 +292,36 @@ intel-brief/
 
 ## 🚀 Production Deployment
 
-### Docker Deployment (Recommended)
+### Render Deployment (Recommended)
+
+1. **Prepare repository**
+   ```bash
+   # Push your code to GitHub
+   git add .
+   git commit -m "Prepare for Render deployment"
+   git push origin main
+   ```
+
+2. **Deploy on Render**
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - Click "New" → "Blueprint"
+   - Connect your GitHub repository
+   - Render will automatically detect `render.yaml` and deploy
+
+3. **Add environment variables** (optional)
+   ```bash
+   # In Render dashboard, add these if needed:
+   DEEPSEEK_API_KEY=your-deepseek-api-key
+   ANTHROPIC_API_KEY=your-anthropic-api-key
+   REDDIT_CLIENT_ID=your-reddit-client-id
+   REDDIT_CLIENT_SECRET=your-reddit-client-secret
+   ```
+
+4. **Access your app**
+   - Render provides a URL like: `https://intel-brief-app.onrender.com`
+   - Health check: `https://your-app.onrender.com/health/check`
+
+### Docker Deployment (Alternative)
 
 1. **Prepare environment**
    ```bash
