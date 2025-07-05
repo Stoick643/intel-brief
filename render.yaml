@@ -3,6 +3,7 @@ services:
     name: intel-brief-app
     env: python
     plan: starter
+    runtime: python-3.11.10
     buildCommand: ./build.sh
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 wsgi:app
     envVars:
