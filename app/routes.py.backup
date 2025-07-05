@@ -201,6 +201,22 @@ def api_collect_rss():
             'message': str(e)
         }), 500
 
+@main.route('/api/process-ai-pipeline', methods=['POST'])
+def api_process_ai_pipeline():
+    """API endpoint to manually trigger AI processing pipeline"""
+    try:
+        results = scheduled_ai_processing()
+        return jsonify({
+            'success': True,
+            'message': 'AI processing pipeline completed',
+            'results': results
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 @main.route('/api/process-ai/<int:article_id>', methods=['POST'])
 def api_process_ai(article_id):
     """API endpoint to process article with AI agents"""
@@ -247,6 +263,22 @@ def api_process_ai(article_id):
             'message': str(e)
         }), 500
 
+@main.route('/api/process-ai-pipeline', methods=['POST'])
+def api_process_ai_pipeline():
+    """API endpoint to manually trigger AI processing pipeline"""
+    try:
+        results = scheduled_ai_processing()
+        return jsonify({
+            'success': True,
+            'message': 'AI processing pipeline completed',
+            'results': results
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 @main.route('/api/feedback', methods=['POST'])
 def api_submit_feedback():
     """API endpoint to submit user feedback"""
@@ -273,6 +305,22 @@ def api_submit_feedback():
             'message': 'Feedback submitted successfully'
         })
         
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@main.route('/api/process-ai-pipeline', methods=['POST'])
+def api_process_ai_pipeline():
+    """API endpoint to manually trigger AI processing pipeline"""
+    try:
+        results = scheduled_ai_processing()
+        return jsonify({
+            'success': True,
+            'message': 'AI processing pipeline completed',
+            'results': results
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -319,6 +367,22 @@ def api_collect_reddit():
             'success': True,
             'message': f'Collected {new_posts} new Reddit posts',
             'new_posts': new_posts
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@main.route('/api/process-ai-pipeline', methods=['POST'])
+def api_process_ai_pipeline():
+    """API endpoint to manually trigger AI processing pipeline"""
+    try:
+        results = scheduled_ai_processing()
+        return jsonify({
+            'success': True,
+            'message': 'AI processing pipeline completed',
+            'results': results
         })
     except Exception as e:
         return jsonify({

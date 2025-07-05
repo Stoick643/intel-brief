@@ -52,7 +52,7 @@ class Config:
     
     # AI Agent Configuration
     DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
-    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
+    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY') or os.environ.get('ANTHROPIC_API_KEY')
     ENABLE_AI_AGENTS = os.environ.get('ENABLE_AI_AGENTS', 'true').lower() == 'true'
     
     # Reddit Configuration

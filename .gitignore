@@ -19,6 +19,18 @@ instance/
 .vscode/
 .idea/
 
+# Docker artifacts
+.env
+logs/
+data/
+ssl/
+backups/
+
+# But keep Docker configuration files
+!Dockerfile
+!docker-compose.yml
+!.env.example
+
 # Logs
 *.log
 EOF
