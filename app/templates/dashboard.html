@@ -11,35 +11,69 @@
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">Total Articles</h5>
-                <h2 class="text-primary">{{ stats.total_articles }}</h2>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center border-primary">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-center align-items-center mb-1">
+                    <i class="fas fa-newspaper fa-lg text-primary me-2"></i>
+                    <h4 class="text-primary mb-0">{{ stats.total_articles }}</h4>
+                </div>
+                <small class="card-title">Articles</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">Active Sources</h5>
-                <h2 class="text-success">{{ stats.total_sources }}</h2>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center border-danger">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-center align-items-center mb-1">
+                    <i class="fab fa-reddit fa-lg text-danger me-2"></i>
+                    <h4 class="text-danger mb-0">{{ stats.total_reddit_posts }}</h4>
+                </div>
+                <small class="card-title">Reddit</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">Today's Articles</h5>
-                <h2 class="text-info">{{ stats.articles_today }}</h2>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center border-success">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-center align-items-center mb-1">
+                    <i class="fas fa-chart-line fa-lg text-success me-2"></i>
+                    <h4 class="text-success mb-0">{{ stats.total_trends }}</h4>
+                </div>
+                <small class="card-title">Trends</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">Active Alerts</h5>
-                <h2 class="text-warning">{{ stats.active_alerts }}</h2>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center border-info">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-center align-items-center mb-1">
+                    <i class="fas fa-rss fa-lg text-info me-2"></i>
+                    <h4 class="text-info mb-0">{{ stats.total_sources }}</h4>
+                </div>
+                <small class="card-title">Sources</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center border-warning">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-center align-items-center mb-1">
+                    <i class="fas fa-calendar-day fa-lg text-warning me-2"></i>
+                    <h4 class="text-warning mb-0">{{ stats.articles_today }}</h4>
+                </div>
+                <small class="card-title">Today</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center border-secondary">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-center align-items-center mb-1">
+                    <i class="fas fa-exclamation-triangle fa-lg text-secondary me-2"></i>
+                    <h4 class="text-secondary mb-0">{{ stats.active_alerts }}</h4>
+                </div>
+                <small class="card-title">Alerts</small>
             </div>
         </div>
     </div>
@@ -69,6 +103,82 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Reddit Posts and Trends -->
+<div class="row mb-4">
+    <!-- Recent Reddit Posts -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fab fa-reddit text-danger"></i> Recent Reddit Posts
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_reddit_posts %}
+                    {% for post in recent_reddit_posts %}
+                    <div class="mb-3 border-bottom pb-2">
+                        <h6 class="mb-1">
+                            <a href="{{ post.url }}" target="_blank" class="text-decoration-none">
+                                {{ post.title[:60] }}...
+                            </a>
+                        </h6>
+                        <small class="text-muted">
+                            <i class="fas fa-user"></i> {{ post.author }}
+                            <i class="fas fa-comments ms-2"></i> {{ post.num_comments }}
+                            <i class="fas fa-arrow-up ms-2"></i> {{ post.score }}
+                            <br>
+                            <i class="fas fa-tag"></i> r/{{ post.subreddit }}
+                            <i class="fas fa-clock ms-2"></i> {{ post.collected_date.strftime('%m-%d %H:%M') }}
+                            {% if post.sentiment_score %}
+                            <span class="badge bg-{% if post.sentiment_score > 0.1 %}success{% elif post.sentiment_score < -0.1 %}danger{% else %}secondary{% endif %} ms-2">
+                                {% if post.sentiment_score > 0.1 %}+{% elif post.sentiment_score < -0.1 %}-{% else %}~{% endif %}
+                            </span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No Reddit posts collected yet. <a href="#" onclick="collectReddit()">Collect now</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Trending Keywords -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line text-success"></i> Trending Keywords
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if trending_keywords %}
+                    {% for trend in trending_keywords %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ trend.keyword }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-tag"></i> {{ trend.category.title() }}
+                                <i class="fas fa-globe ms-2"></i> {{ trend.region }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary">{{ trend.trend_score|round }}</span>
+                            <br>
+                            <small class="text-muted">{{ trend.collected_date.strftime('%m-%d') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No trends data yet. <a href="#" onclick="collectTrends()">Collect now</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Recent Articles -->
 <div class="row mb-4">

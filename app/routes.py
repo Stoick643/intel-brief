@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from app import db
 from app.models import Article, Source, RedditPost, Trend, Alert, UserFeedback, AgentAnalysis, AgentPerformance
 from app.services.rss_collector import RSSCollector, scheduled_rss_collection
+from app.services.reddit_collector import RedditCollector, scheduled_reddit_collection
+from app.services.trends_collector import TrendsCollector, scheduled_trends_collection
+from app.services.ai_pipeline import AIProcessingPipeline, scheduled_ai_processing
 from app.services.ai_agents import ContentQualityAgent, SummaryAgent, TrendSynthesisAgent, AlertPrioritizationAgent
 import json
 
@@ -13,12 +16,20 @@ main = Blueprint('main', __name__)
 def dashboard():
     """Main dashboard"""
     # Get recent articles
-    recent_articles = Article.query.order_by(desc(Article.collected_date)).limit(10).all()
+    recent_articles = Article.query.order_by(desc(Article.collected_date)).limit(8).all()
+    
+    # Get recent Reddit posts
+    recent_reddit_posts = RedditPost.query.order_by(desc(RedditPost.collected_date)).limit(5).all()
     
     # Get articles by category
     ai_articles = Article.query.filter_by(category='ai').order_by(desc(Article.collected_date)).limit(5).all()
     science_articles = Article.query.filter_by(category='science').order_by(desc(Article.collected_date)).limit(5).all()
     intl_articles = Article.query.filter_by(category='international').order_by(desc(Article.collected_date)).limit(5).all()
+    
+    # Get trending keywords
+    trending_keywords = Trend.query.filter(
+        Trend.collected_date >= datetime.utcnow() - timedelta(days=1)
+    ).order_by(desc(Trend.trend_score)).limit(10).all()
     
     # Get alerts
     alerts = Alert.query.filter_by(is_read=False).order_by(desc(Alert.created_at)).limit(5).all()
@@ -26,6 +37,8 @@ def dashboard():
     # Get basic stats
     stats = {
         'total_articles': Article.query.count(),
+        'total_reddit_posts': RedditPost.query.count(),
+        'total_trends': Trend.query.count(),
         'total_sources': Source.query.filter_by(is_active=True).count(),
         'articles_today': Article.query.filter(
             Article.collected_date >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -35,6 +48,8 @@ def dashboard():
     
     return render_template('dashboard.html', 
                          recent_articles=recent_articles,
+                         recent_reddit_posts=recent_reddit_posts,
+                         trending_keywords=trending_keywords,
                          ai_articles=ai_articles,
                          science_articles=science_articles,
                          intl_articles=intl_articles,
@@ -281,6 +296,8 @@ def api_stats():
     """API endpoint for dashboard statistics"""
     stats = {
         'total_articles': Article.query.count(),
+        'total_reddit_posts': RedditPost.query.count(),
+        'total_trends': Trend.query.count(),
         'total_sources': Source.query.filter_by(is_active=True).count(),
         'articles_today': Article.query.filter(
             Article.collected_date >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -292,3 +309,35 @@ def api_stats():
     }
     
     return jsonify(stats)
+
+@main.route('/api/collect-reddit', methods=['POST'])
+def api_collect_reddit():
+    """API endpoint to manually trigger Reddit collection"""
+    try:
+        new_posts = scheduled_reddit_collection()
+        return jsonify({
+            'success': True,
+            'message': f'Collected {new_posts} new Reddit posts',
+            'new_posts': new_posts
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@main.route('/api/collect-trends', methods=['POST'])
+def api_collect_trends():
+    """API endpoint to manually trigger Google Trends collection"""
+    try:
+        new_trends = scheduled_trends_collection()
+        return jsonify({
+            'success': True,
+            'message': f'Collected {new_trends} new trend entries',
+            'new_trends': new_trends
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500

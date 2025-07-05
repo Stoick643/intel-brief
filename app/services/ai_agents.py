@@ -1,5 +1,6 @@
 import json
 import time
+import requests
 from datetime import datetime
 from abc import ABC, abstractmethod
 from textblob import TextBlob
@@ -10,6 +11,126 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
+class DeepSeekClient:
+    """Client for DeepSeek API integration"""
+    
+    def __init__(self):
+        self.api_key = Config.DEEPSEEK_API_KEY
+        self.base_url = "https://api.deepseek.com/v1"
+        self.available = bool(self.api_key)
+        
+    def chat_completion(self, messages, model="deepseek-chat", max_tokens=1000, temperature=0.3):
+        """Make a chat completion request to DeepSeek API"""
+        if not self.available:
+            raise Exception("DeepSeek API key not configured")
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=Config.AI_TIMEOUT
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return {
+                'content': result['choices'][0]['message']['content'],
+                'tokens_used': result.get('usage', {}).get('total_tokens', 0),
+                'cost_estimate': self._estimate_cost(result.get('usage', {}).get('total_tokens', 0))
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"DeepSeek API request failed: {str(e)}")
+            raise Exception(f"DeepSeek API error: {str(e)}")
+    
+    def _estimate_cost(self, tokens):
+        """Estimate cost based on token usage (DeepSeek pricing)"""
+        # DeepSeek pricing: ~$0.14 per 1M tokens (approximate)
+        return (tokens / 1_000_000) * 0.14
+
+class ClaudeClient:
+    """Client for Claude API integration"""
+    
+    def __init__(self):
+        self.api_key = Config.CLAUDE_API_KEY
+        self.base_url = "https://api.anthropic.com/v1"
+        self.available = bool(self.api_key)
+        
+    def chat_completion(self, messages, model="claude-3-haiku-20240307", max_tokens=1000, temperature=0.3):
+        """Make a chat completion request to Claude API"""
+        if not self.available:
+            raise Exception("Claude API key not configured")
+        
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json"
+        }
+        
+        # Convert messages to Claude format
+        system_message = ""
+        user_messages = []
+        
+        for msg in messages:
+            if msg["role"] == "system":
+                system_message = msg["content"]
+            else:
+                user_messages.append(msg)
+        
+        payload = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": user_messages
+        }
+        
+        if system_message:
+            payload["system"] = system_message
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/messages",
+                headers=headers,
+                json=payload,
+                timeout=Config.AI_TIMEOUT
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return {
+                'content': result['content'][0]['text'],
+                'tokens_used': result.get('usage', {}).get('input_tokens', 0) + result.get('usage', {}).get('output_tokens', 0),
+                'cost_estimate': self._estimate_cost(result.get('usage', {}))
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Claude API request failed: {str(e)}")
+            raise Exception(f"Claude API error: {str(e)}")
+    
+    def _estimate_cost(self, usage):
+        """Estimate cost based on token usage (Claude pricing)"""
+        input_tokens = usage.get('input_tokens', 0)
+        output_tokens = usage.get('output_tokens', 0)
+        
+        # Claude 3 Haiku pricing: $0.25 per 1M input tokens, $1.25 per 1M output tokens
+        input_cost = (input_tokens / 1_000_000) * 0.25
+        output_cost = (output_tokens / 1_000_000) * 1.25
+        return input_cost + output_cost
+
 class BaseAIAgent(ABC):
     """Base class for all AI agents"""
     
@@ -18,6 +139,10 @@ class BaseAIAgent(ABC):
         self.enabled = Config.ENABLE_AI_AGENTS
         self.retry_count = Config.AI_RETRY_COUNT
         self.timeout = Config.AI_TIMEOUT
+        
+        # Initialize AI clients
+        self.deepseek = DeepSeekClient()
+        self.claude = ClaudeClient()
     
     @abstractmethod
     def process(self, data):
@@ -131,9 +256,12 @@ class ContentQualityAgent(BaseAIAgent):
                 self._log_analysis(article_data, result, processing_time, success=True)
                 return result
             
-            # TODO: Implement DeepSeek API call for quality scoring
-            # For now, use enhanced fallback
-            result = self._enhanced_quality_scoring(article_data)
+            # Try DeepSeek API first
+            if self.deepseek.available:
+                result = self._deepseek_quality_scoring(article_data)
+            else:
+                # Use enhanced fallback
+                result = self._enhanced_quality_scoring(article_data)
             processing_time = time.time() - start_time
             self._log_analysis(article_data, result, processing_time, success=True)
             return result
@@ -147,6 +275,67 @@ class ContentQualityAgent(BaseAIAgent):
             result = self._fallback_process(article_data)
             self._log_analysis(article_data, result, processing_time, success=False, error_message=error_msg)
             return result
+    
+    def _deepseek_quality_scoring(self, article_data):
+        """Quality scoring using DeepSeek API"""
+        title = article_data.get('title', '')
+        content = article_data.get('content', '')
+        author = article_data.get('author', '')
+        
+        # Prepare prompt for DeepSeek
+        messages = [
+            {
+                "role": "system",
+                "content": """You are an expert content quality assessor. Analyze articles and provide a quality score from 0.0 to 1.0 based on:
+- Content depth and informativeness
+- Writing clarity and structure
+- Factual reliability indicators
+- Professional presentation
+- Source credibility
+
+Respond with a JSON object containing:
+{
+  "quality_score": float (0.0-1.0),
+  "reasoning": "brief explanation",
+  "factors": ["list", "of", "quality", "factors"],
+  "recommendations": "brief improvement suggestions"
+}"""
+            },
+            {
+                "role": "user",
+                "content": f"""Assess this article:
+
+Title: {title}
+Author: {author or "Unknown"}
+Content: {content[:2000]}...
+
+Provide your quality assessment as JSON."""
+            }
+        ]
+        
+        try:
+            response = self.deepseek.chat_completion(messages, max_tokens=500, temperature=0.1)
+            
+            # Parse JSON response
+            result_data = json.loads(response['content'])
+            
+            return {
+                'quality_score': float(result_data.get('quality_score', 0.5)),
+                'method': 'deepseek_ai',
+                'reasoning': result_data.get('reasoning', ''),
+                'factors': result_data.get('factors', []),
+                'recommendations': result_data.get('recommendations', ''),
+                'tokens_used': response.get('tokens_used', 0),
+                'cost_estimate': response.get('cost_estimate', 0.0)
+            }
+            
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning(f"DeepSeek response parsing failed: {e}")
+            # Fall back to enhanced scoring
+            return self._enhanced_quality_scoring(article_data)
+        except Exception as e:
+            logger.error(f"DeepSeek API call failed: {e}")
+            raise
     
     def _enhanced_quality_scoring(self, article_data):
         """Enhanced quality scoring with basic NLP"""
@@ -222,9 +411,12 @@ class SummaryAgent(BaseAIAgent):
                 self._log_analysis(article_data, result, processing_time, success=True)
                 return result
             
-            # TODO: Implement Claude API call for summarization
-            # For now, use enhanced fallback
-            result = self._enhanced_summarization(article_data)
+            # Try Claude API first
+            if self.claude.available:
+                result = self._claude_summarization(article_data)
+            else:
+                # Use enhanced fallback
+                result = self._enhanced_summarization(article_data)
             processing_time = time.time() - start_time
             self._log_analysis(article_data, result, processing_time, success=True)
             return result
@@ -237,6 +429,51 @@ class SummaryAgent(BaseAIAgent):
             result = self._fallback_process(article_data)
             self._log_analysis(article_data, result, processing_time, success=False, error_message=error_msg)
             return result
+    
+    def _claude_summarization(self, article_data):
+        """Summarization using Claude API"""
+        title = article_data.get('title', '')
+        content = article_data.get('content', '')
+        
+        if not content:
+            return {'summary': title, 'method': 'title_only'}
+        
+        # Prepare prompt for Claude
+        messages = [
+            {
+                "role": "system",
+                "content": """You are an expert at creating concise, informative summaries. Create a 2-3 sentence summary that captures the key points and main insights of the article. Focus on the most important information that would be valuable for intelligence briefing purposes."""
+            },
+            {
+                "role": "user",
+                "content": f"""Summarize this article:
+
+Title: {title}
+Content: {content}
+
+Provide a concise 2-3 sentence summary focusing on key insights and actionable information."""
+            }
+        ]
+        
+        try:
+            response = self.claude.chat_completion(messages, max_tokens=300, temperature=0.2)
+            
+            summary = response['content'].strip()
+            
+            return {
+                'summary': summary,
+                'method': 'claude_ai',
+                'original_length': len(content),
+                'summary_length': len(summary),
+                'compression_ratio': len(summary) / len(content) if content else 0,
+                'tokens_used': response.get('tokens_used', 0),
+                'cost_estimate': response.get('cost_estimate', 0.0)
+            }
+            
+        except Exception as e:
+            logger.error(f"Claude summarization failed: {e}")
+            # Fall back to enhanced summarization
+            return self._enhanced_summarization(article_data)
     
     def _enhanced_summarization(self, article_data):
         """Enhanced summarization with basic NLP"""
@@ -284,8 +521,11 @@ class TrendSynthesisAgent(BaseAIAgent):
                 self._log_analysis(trends_data, result, processing_time, success=True)
                 return result
             
-            # TODO: Implement Claude API call for trend synthesis
-            result = self._enhanced_trend_synthesis(trends_data)
+            # Try Claude API first
+            if self.claude.available:
+                result = self._claude_trend_synthesis(trends_data)
+            else:
+                result = self._enhanced_trend_synthesis(trends_data)
             processing_time = time.time() - start_time
             self._log_analysis(trends_data, result, processing_time, success=True)
             return result
@@ -298,6 +538,55 @@ class TrendSynthesisAgent(BaseAIAgent):
             result = self._fallback_process(trends_data)
             self._log_analysis(trends_data, result, processing_time, success=False, error_message=error_msg)
             return result
+    
+    def _claude_trend_synthesis(self, trends_data):
+        """Trend synthesis using Claude API"""
+        if not isinstance(trends_data, list):
+            trends_data = [trends_data]
+        
+        # Prepare trend data for analysis
+        trend_summary = []
+        for trend in trends_data:
+            trend_summary.append(f"- {trend.get('keyword', 'Unknown')}: {trend.get('trend_score', 0)} ({trend.get('category', 'unknown')} category, {trend.get('region', 'unknown')} region)")
+        
+        messages = [
+            {
+                "role": "system",
+                "content": """You are an expert trend analyst specializing in intelligence briefings. Analyze trend data and provide strategic insights about emerging patterns, potential implications, and actionable intelligence. Focus on identifying connections between trends and their potential impact."""
+            },
+            {
+                "role": "user",
+                "content": f"""Analyze these trending topics and provide strategic insights:
+
+{chr(10).join(trend_summary)}
+
+Provide analysis covering:
+1. Key patterns and connections
+2. Strategic implications
+3. Potential opportunities or threats
+4. Recommended monitoring priorities
+
+Format as clear, concise intelligence briefing points."""
+            }
+        ]
+        
+        try:
+            response = self.claude.chat_completion(messages, max_tokens=600, temperature=0.3)
+            
+            analysis = response['content'].strip()
+            
+            return {
+                'analysis': analysis,
+                'method': 'claude_ai',
+                'trends_analyzed': len(trends_data),
+                'categories': list(set(t.get('category', 'unknown') for t in trends_data)),
+                'tokens_used': response.get('tokens_used', 0),
+                'cost_estimate': response.get('cost_estimate', 0.0)
+            }
+            
+        except Exception as e:
+            logger.error(f"Claude trend synthesis failed: {e}")
+            return self._enhanced_trend_synthesis(trends_data)
     
     def _enhanced_trend_synthesis(self, trends_data):
         """Enhanced trend synthesis"""
@@ -347,8 +636,11 @@ class AlertPrioritizationAgent(BaseAIAgent):
                 self._log_analysis(alert_data, result, processing_time, success=True)
                 return result
             
-            # TODO: Implement Claude API call for alert prioritization
-            result = self._enhanced_alert_prioritization(alert_data)
+            # Try Claude API first
+            if self.claude.available:
+                result = self._claude_alert_prioritization(alert_data)
+            else:
+                result = self._enhanced_alert_prioritization(alert_data)
             processing_time = time.time() - start_time
             self._log_analysis(alert_data, result, processing_time, success=True)
             return result
@@ -361,6 +653,62 @@ class AlertPrioritizationAgent(BaseAIAgent):
             result = self._fallback_process(alert_data)
             self._log_analysis(alert_data, result, processing_time, success=False, error_message=error_msg)
             return result
+    
+    def _claude_alert_prioritization(self, alert_data):
+        """Alert prioritization using Claude API"""
+        title = alert_data.get('title', '')
+        message = alert_data.get('message', '')
+        alert_type = alert_data.get('alert_type', '')
+        created_at = alert_data.get('created_at', datetime.utcnow())
+        
+        messages = [
+            {
+                "role": "system",
+                "content": """You are an expert intelligence analyst specializing in alert prioritization. Assess alerts for urgency, potential impact, and required response level. Provide a priority score from 0.0 (lowest) to 1.0 (highest priority) with clear reasoning."""
+            },
+            {
+                "role": "user",
+                "content": f"""Prioritize this alert for intelligence briefing:
+
+Title: {title}
+Type: {alert_type}
+Message: {message}
+Created: {created_at}
+
+Provide a JSON response with:
+{{
+  "priority_score": float (0.0-1.0),
+  "priority_level": "low/medium/high/critical",
+  "reasoning": "brief explanation",
+  "urgency_factors": ["list", "of", "factors"],
+  "recommended_action": "suggested response"
+}}"""
+            }
+        ]
+        
+        try:
+            response = self.claude.chat_completion(messages, max_tokens=400, temperature=0.1)
+            
+            # Parse JSON response
+            result_data = json.loads(response['content'])
+            
+            return {
+                'priority_score': float(result_data.get('priority_score', 0.5)),
+                'priority_level': result_data.get('priority_level', 'medium'),
+                'method': 'claude_ai',
+                'reasoning': result_data.get('reasoning', ''),
+                'urgency_factors': result_data.get('urgency_factors', []),
+                'recommended_action': result_data.get('recommended_action', ''),
+                'tokens_used': response.get('tokens_used', 0),
+                'cost_estimate': response.get('cost_estimate', 0.0)
+            }
+            
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning(f"Claude alert prioritization response parsing failed: {e}")
+            return self._enhanced_alert_prioritization(alert_data)
+        except Exception as e:
+            logger.error(f"Claude alert prioritization failed: {e}")
+            return self._enhanced_alert_prioritization(alert_data)
     
     def _enhanced_alert_prioritization(self, alert_data):
         """Enhanced alert prioritization"""

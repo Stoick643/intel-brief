@@ -233,6 +233,52 @@
             document.getElementById('lastUpdated').textContent = now.toLocaleString();
         }
 
+        function collectReddit() {
+            if (confirm('Start Reddit collection? This may take a few minutes.')) {
+                fetch('/api/collect-reddit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Reddit collection completed: ' + data.new_posts + ' new posts');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                });
+            }
+        }
+
+        function collectTrends() {
+            if (confirm('Start Google Trends collection? This may take several minutes.')) {
+                fetch('/api/collect-trends', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Google Trends collection completed: ' + data.new_trends + ' new entries');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                });
+            }
+        }
+
         // Auto-refresh every 5 minutes
         setInterval(updateLastUpdated, 300000);
     </script>
