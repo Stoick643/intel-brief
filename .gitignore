@@ -1,0 +1,24 @@
+# Back up the current one (just in case)
+cp .gitignore .gitignore.backup
+
+# Create a simple version
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+instance/
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+EOF

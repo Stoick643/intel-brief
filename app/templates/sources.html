@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Sources Status - Intelligence Briefing System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Sources Status</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">RSS Feed Health Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Last Collection</th>
+                                <th>Total Collections</th>
+                                <th>Total Articles</th>
+                                <th>This Week</th>
+                                <th>Errors</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for source in health_status %}
+                            <tr>
+                                <td>
+                                    <span class="source-health health-{{ source.health }}"></span>
+                                    {{ source.health.title() }}
+                                </td>
+                                <td>{{ source.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if source.category == 'ai' %}primary{% elif source.category == 'science' %}success{% else %}info{% endif %}">
+                                        {{ source.category.title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if source.last_collected %}
+                                    {{ source.last_collected.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                    Never
+                                    {% endif %}
+                                </td>
+                                <td>{{ source.collection_count }}</td>
+                                <td>{{ source_stats.get(source.id, {}).get('total_articles', 0) }}</td>
+                                <td>{{ source_stats.get(source.id, {}).get('last_week', 0) }}</td>
+                                <td>
+                                    {% if source.error_count > 0 %}
+                                    <span class="badge bg-danger">{{ source.error_count }}</span>
+                                    {% else %}
+                                    <span class="badge bg-success">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ source.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Collection Actions</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary" onclick="collectRSS()">
+                    <i class="fas fa-sync"></i> Collect All RSS Feeds
+                </button>
+                <button class="btn btn-info ms-2" onclick="location.reload()">
+                    <i class="fas fa-refresh"></i> Refresh Status
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

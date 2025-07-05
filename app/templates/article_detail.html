@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} - Intelligence Briefing System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title">{{ article.title }}</h1>
+                
+                <div class="mb-3">
+                    <small class="text-muted">
+                        {% if article.author %}
+                        <i class="fas fa-user"></i> {{ article.author }}
+                        {% endif %}
+                        {% if article.published_date %}
+                        <i class="fas fa-calendar ms-2"></i> {{ article.published_date.strftime('%Y-%m-%d %H:%M') }}
+                        {% endif %}
+                        <i class="fas fa-clock ms-2"></i> Collected: {{ article.collected_date.strftime('%Y-%m-%d %H:%M') }}
+                        <i class="fas fa-eye ms-2"></i> Views: {{ article.view_count }}
+                    </small>
+                </div>
+
+                {% if article.quality_score or article.ai_processed %}
+                <div class="mb-3">
+                    {% if article.quality_score %}
+                    <span class="quality-score {% if article.quality_score >= 0.7 %}quality-high{% elif article.quality_score >= 0.4 %}quality-medium{% else %}quality-low{% endif %}">
+                        Quality: {{ (article.quality_score * 100)|round }}%
+                    </span>
+                    {% endif %}
+                    {% if article.ai_processed %}
+                    <span class="ai-badge ms-2">AI Processed</span>
+                    {% endif %}
+                    {% if article.sentiment_score %}
+                    <span class="badge bg-{% if article.sentiment_score > 0.1 %}success{% elif article.sentiment_score < -0.1 %}danger{% else %}secondary{% endif %} ms-2">
+                        Sentiment: {% if article.sentiment_score > 0.1 %}Positive{% elif article.sentiment_score < -0.1 %}Negative{% else %}Neutral{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if article.ai_summary %}
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-robot"></i> AI Summary</h6>
+                    <p class="mb-0">{{ article.ai_summary }}</p>
+                </div>
+                {% elif article.summary %}
+                <div class="alert alert-light">
+                    <h6>Summary</h6>
+                    <p class="mb-0">{{ article.summary }}</p>
+                </div>
+                {% endif %}
+
+                {% if article.content %}
+                <div class="article-content">
+                    <p>{{ article.content }}</p>
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div>
+                        <a href="{{ article.url }}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> View Original
+                        </a>
+                        {% if not article.ai_processed %}
+                        <button class="btn btn-info" onclick="processWithAI({{ article.id }})">
+                            <i class="fas fa-robot"></i> Process with AI
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <button class="btn btn-success" onclick="submitFeedback({{ article.id }}, 5, 'content_rating')" title="Good Article">
+                            <i class="fas fa-thumbs-up"></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="submitFeedback({{ article.id }}, 1, 'content_rating')" title="Bad Article">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Source Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">Source Information</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Source:</strong> {{ article.source.name }}</p>
+                <p><strong>Category:</strong> {{ article.category.title() }}</p>
+                <p><strong>URL:</strong> <a href="{{ article.source.url }}" target="_blank">{{ article.source.url[:50] }}...</a></p>
+            </div>
+        </div>
+
+        <!-- Related Articles -->
+        {% if related_articles %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Related Articles</h6>
+            </div>
+            <div class="card-body">
+                {% for related in related_articles %}
+                <div class="mb-3">
+                    <h6 class="mb-1">
+                        <a href="{{ url_for('main.article_detail', article_id=related.id) }}" class="text-decoration-none">
+                            {{ related.title[:60] }}...
+                        </a>
+                    </h6>
+                    <small class="text-muted">
+                        {{ related.collected_date.strftime('%Y-%m-%d') }}
+                        {% if related.quality_score %}
+                        <span class="quality-score {% if related.quality_score >= 0.7 %}quality-high{% elif related.quality_score >= 0.4 %}quality-medium{% else %}quality-low{% endif %}">
+                            {{ (related.quality_score * 100)|round }}%
+                        </span>
+                        {% endif %}
+                    </small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
