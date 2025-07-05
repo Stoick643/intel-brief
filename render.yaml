@@ -3,7 +3,7 @@ services:
     name: intel-brief-app
     env: python
     plan: starter
-    buildCommand: pip install -r requirements.txt
+    buildCommand: ./build.sh
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 wsgi:app
     envVars:
       - key: FLASK_ENV
@@ -15,19 +15,15 @@ services:
           name: intel-brief-db
           property: connectionString
       - key: ENABLE_AI_AGENTS
-        value: true
+        value: "true"
       - key: LOG_TO_FILE
-        value: false
+        value: "false"
       - key: RATE_LIMIT_ENABLED
-        value: true
+        value: "true"
       - key: HEALTH_CHECK_ENABLED
-        value: true
+        value: "true"
       - key: METRICS_ENABLED
-        value: true
+        value: "true"
 
-  - type: pserv
-    name: intel-brief-db
-    env: postgres
-    plan: starter
-    databaseName: intel_brief_db
-    databaseUser: intel_brief
+databases:
+  - name: intel-brief-db
