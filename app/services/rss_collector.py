@@ -54,6 +54,12 @@ class RSSCollector:
                     # Create new article
                     article = self._create_article_from_entry(entry, source, feed_config['category'])
                     if article:
+                        # Check if article is too old
+                        minimum_date = datetime.strptime(Config.MINIMUM_ARTICLE_DATE, '%Y-%m-%d')
+                        if article.published_date and article.published_date < minimum_date:
+                            logger.debug(f"Skipping old article from {article.published_date}: {article.title[:50]}")
+                            continue
+                        
                         db.session.add(article)
                         new_articles_count += 1
                         

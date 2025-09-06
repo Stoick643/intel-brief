@@ -1,36 +1,84 @@
-# Back up the current one (just in case)
-cp .gitignore .gitignore.backup
-
-# Create a simple version
-cat > .gitignore << 'EOF'
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Environment
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment variables
 .env
-instance/
+.env.local
+.env.development
+.env.test
+.env.production
 
 # Database
 *.db
+*.sqlite
 *.sqlite3
+instance/
+
+# Logs
+logs/
+*.log
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Docker artifacts
-.env
-logs/
-data/
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.backup
+*.bak
+
+# Docker (but keep config files)
+.dockerignore
+
+# SSL certificates
 ssl/
+
+# Data directories
+data/
 backups/
 
-# But keep Docker configuration files
+# Keep important config files
+!.env.example
 !Dockerfile
 !docker-compose.yml
-!.env.example
-
-# Logs
-*.log
-EOF

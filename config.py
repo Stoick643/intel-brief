@@ -9,23 +9,28 @@ class Config:
     # RSS Feed Configuration
     RSS_FEEDS = [
         {
-            'name': 'Anthropic Blog',
-            'url': 'https://www.anthropic.com/news/rss.xml',
+            'name': 'TechCrunch AI',
+            'url': 'https://techcrunch.com/category/artificial-intelligence/feed/',
             'category': 'ai'
         },
         {
             'name': 'Simon Willison',
-            'url': 'https://simonwillison.net/atom/',
+            'url': 'https://simonwillison.net/atom/everything/',
             'category': 'ai'
         },
         {
-            'name': 'OpenAI Blog',
-            'url': 'https://openai.com/blog/rss/',
+            'name': 'Ars Technica AI',
+            'url': 'https://feeds.arstechnica.com/arstechnica/technology-lab',
             'category': 'ai'
         },
         {
             'name': 'MIT Technology Review AI',
             'url': 'https://www.technologyreview.com/topic/artificial-intelligence/feed/',
+            'category': 'ai'
+        },
+        {
+            'name': 'AI News',
+            'url': 'https://artificialintelligence-news.com/feed/',
             'category': 'ai'
         },
         {
@@ -45,7 +50,7 @@ class Config:
         },
         {
             'name': 'Council on Foreign Relations',
-            'url': 'https://www.cfr.org/rss-feeds/publications',
+            'url': 'https://feeds.cfr.org/publication/rss',
             'category': 'international'
         }
     ]
@@ -69,3 +74,6 @@ class Config:
     MAX_ARTICLES_PER_BATCH = int(os.environ.get('MAX_ARTICLES_PER_BATCH', '50'))
     AI_RETRY_COUNT = int(os.environ.get('AI_RETRY_COUNT', '3'))
     AI_TIMEOUT = int(os.environ.get('AI_TIMEOUT', '30'))  # seconds
+    
+    # Article filtering
+    MINIMUM_ARTICLE_DATE = os.environ.get('MINIMUM_ARTICLE_DATE', '2025-01-01')  # Only collect articles from this date forward
